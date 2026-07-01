@@ -56,16 +56,16 @@ Sie ──► RTP2WS :  [BINARY] PCM … [BINARY] PCM …                  (opti
 }
 ```
 
-| Feld | Typ | Bedeutung |
-|---|---|---|
-| `callId` | string | Eindeutige, opake Kennung dieses Anrufs. Als opak behandeln. |
-| `fromNumber` | string | Rufnummer des Anrufers, E.164 (`+…`). |
-| `toNumber` | string | Rufnummer des angerufenen Teilnehmers, E.164 (`+…`). |
-| `startedAt` | string | Zeitpunkt der Anrufannahme, UTC ISO-8601. |
-| `audio.sampleRate` | int | Abtastrate in Hz: `8000` oder `16000`. |
-| `audio.format` | string | Immer `"s16le"` — 16 Bit vorzeichenbehaftet, Little-Endian. |
-| `audio.captureChannels` | int | Kanäle im Audio, das **Sie empfangen**: `2` = Stereo, `1` = Mono. |
-| `audio.injectChannels` | int | Kanäle im Audio, das **Sie senden dürfen**: `2` = Stereo, `1` = Mono. |
+| Feld                      | Typ    | Bedeutung                                                                                                                                        |
+| ------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `callId`                  | string | Eindeutige, opake Kennung dieses Anrufs. Als opak behandeln.                                                                                     |
+| `fromNumber`              | string | Rufnummer des Anrufers, E.164 (`+…`).                                                                                                            |
+| `toNumber`                | string | Rufnummer des angerufenen Teilnehmers, E.164 (`+…`).                                                                                             |
+| `startedAt`               | string | Zeitpunkt der Anrufannahme, UTC ISO-8601.                                                                                                        |
+| `audio.sampleRate`        | int    | Abtastrate in Hz: `8000` oder `16000`.                                                                                                           |
+| `audio.format`            | string | Immer `"s16le"` — 16 Bit vorzeichenbehaftet, Little-Endian.                                                                                      |
+| `audio.captureChannels`   | int    | Kanäle im Audio, das **Sie empfangen**: `2` = Stereo, `1` = Mono.                                                                                |
+| `audio.injectChannels`    | int    | Kanäle im Audio, das **Sie senden dürfen**: `2` = Stereo, `1` = Mono.                                                                            |
 | `audio.monoWhisperTarget` | string | Nur relevant bei `injectChannels == 1`: welcher Teilnehmer Ihr Mono-Audio hört — `caller` (Anrufer), `callee` (Angerufener) oder `both` (beide). |
 
 Der `audio`-Block bestimmt für diesen Anruf vollständig das Byte-Layout in beiden
@@ -127,9 +127,9 @@ Wenn Sie senden, wird das Audio in den laufenden Anruf gemischt:
 Bytes pro 20-ms-Audioabschnitt, nach Abtastrate und Kanalanzahl:
 
 | Abtastrate | Mono (1 Kanal) | Stereo (2 Kanäle) |
-|---|---:|---:|
-| 8 000 Hz | 320 Bytes | 640 Bytes |
-| 16 000 Hz | 640 Bytes | 1280 Bytes |
+| ---------- | -------------: | ----------------: |
+| 8 000 Hz   |      320 Bytes |         640 Bytes |
+| 16 000 Hz  |      640 Bytes |        1280 Bytes |
 
 (16-Bit-Samples = 2 Bytes/Sample; pro Kanal: `Abtastrate × 0,020 × 2` Bytes.)
 

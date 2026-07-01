@@ -52,16 +52,16 @@ you ──► RTP2WS :  [BINARY] PCM … [BINARY] PCM …                  (opti
 }
 ```
 
-| Field | Type | Meaning |
-|---|---|---|
-| `callId` | string | Opaque unique identifier for this call. Treat as opaque. |
-| `fromNumber` | string | Caller's number, E.164 (`+…`). |
-| `toNumber` | string | Called party's number, E.164 (`+…`). |
-| `startedAt` | string | Call-answer time, UTC ISO-8601. |
-| `audio.sampleRate` | int | Sample rate in Hz: `8000` or `16000`. |
-| `audio.format` | string | Always `"s16le"` — 16-bit signed, little-endian. |
-| `audio.captureChannels` | int | Channels in the audio **you receive**: `2` = stereo, `1` = mono. |
-| `audio.injectChannels` | int | Channels in the audio **you may send**: `2` = stereo, `1` = mono. |
+| Field                     | Type   | Meaning                                                                                                    |
+| ------------------------- | ------ | ---------------------------------------------------------------------------------------------------------- |
+| `callId`                  | string | Opaque unique identifier for this call. Treat as opaque.                                                   |
+| `fromNumber`              | string | Caller's number, E.164 (`+…`).                                                                             |
+| `toNumber`                | string | Called party's number, E.164 (`+…`).                                                                       |
+| `startedAt`               | string | Call-answer time, UTC ISO-8601.                                                                            |
+| `audio.sampleRate`        | int    | Sample rate in Hz: `8000` or `16000`.                                                                      |
+| `audio.format`            | string | Always `"s16le"` — 16-bit signed, little-endian.                                                           |
+| `audio.captureChannels`   | int    | Channels in the audio **you receive**: `2` = stereo, `1` = mono.                                           |
+| `audio.injectChannels`    | int    | Channels in the audio **you may send**: `2` = stereo, `1` = mono.                                          |
 | `audio.monoWhisperTarget` | string | Only relevant if `injectChannels == 1`: which party hears your mono audio — `caller`, `callee`, or `both`. |
 
 The `audio` block fully determines the byte layout in both directions for this call.
@@ -117,9 +117,9 @@ is mixed into the live call:
 Bytes per 20 ms audio chunk, by sample rate and channel count:
 
 | Sample rate | Mono (1 ch) | Stereo (2 ch) |
-|---|---:|---:|
-| 8 000 Hz | 320 bytes | 640 bytes |
-| 16 000 Hz | 640 bytes | 1280 bytes |
+| ----------- | ----------: | ------------: |
+| 8 000 Hz    |   320 bytes |     640 bytes |
+| 16 000 Hz   |   640 bytes |    1280 bytes |
 
 (16-bit samples = 2 bytes/sample; per channel: `sampleRate × 0.020 × 2` bytes.)
 
