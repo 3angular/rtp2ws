@@ -49,8 +49,8 @@ Sie ──► RTP2WS :  [BINARY] PCM … [BINARY] PCM …                  (opti
   "audio": {
     "sampleRate": 8000,
     "format": "s16le",
-    "captureChannels": 2,
-    "injectChannels": 2,
+    "captureChannels": 1,
+    "injectChannels": 1,
     "monoWhisperTarget": "callee"
   }
 }
@@ -59,7 +59,7 @@ Sie ──► RTP2WS :  [BINARY] PCM … [BINARY] PCM …                  (opti
 | Feld                      | Typ    | Bedeutung                                                                                                                                        |
 | ------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `callId`                  | string | Eindeutige, opake Kennung dieses Anrufs. Als opak behandeln.                                                                                     |
-| `fromNumber`              | string | Rufnummer des Anrufers, E.164 (`+…`).                                                                                                            |
+| `fromNumber`              | string | Rufnummer des Anrufers, meist E.164 (`+…`); `null`, wenn unterdrückt oder anonym.                                                                |
 | `toNumber`                | string | Rufnummer des angerufenen Teilnehmers, E.164 (`+…`).                                                                                             |
 | `startedAt`               | string | Zeitpunkt der Anrufannahme, UTC ISO-8601.                                                                                                        |
 | `audio.sampleRate`        | int    | Abtastrate in Hz: `8000` oder `16000`.                                                                                                           |

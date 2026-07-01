@@ -45,8 +45,8 @@ you ──► RTP2WS :  [BINARY] PCM … [BINARY] PCM …                  (opti
   "audio": {
     "sampleRate": 8000,
     "format": "s16le",
-    "captureChannels": 2,
-    "injectChannels": 2,
+    "captureChannels": 1,
+    "injectChannels": 1,
     "monoWhisperTarget": "callee"
   }
 }
@@ -55,7 +55,7 @@ you ──► RTP2WS :  [BINARY] PCM … [BINARY] PCM …                  (opti
 | Field                     | Type   | Meaning                                                                                                    |
 | ------------------------- | ------ | ---------------------------------------------------------------------------------------------------------- |
 | `callId`                  | string | Opaque unique identifier for this call. Treat as opaque.                                                   |
-| `fromNumber`              | string | Caller's number, E.164 (`+…`).                                                                             |
+| `fromNumber`              | string | Caller's number, usually E.164 (`+…`); `null` if withheld or anonymous.                                    |
 | `toNumber`                | string | Called party's number, E.164 (`+…`).                                                                       |
 | `startedAt`               | string | Call-answer time, UTC ISO-8601.                                                                            |
 | `audio.sampleRate`        | int    | Sample rate in Hz: `8000` or `16000`.                                                                      |

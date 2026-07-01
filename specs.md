@@ -59,16 +59,20 @@ than assuming it is up.
 
 1. **Incoming call → Stasis.** The dialplan hands every inbound call to the sidecar's
    Stasis application. The sidecar reads the call's `To` number (E.164 with leading
-   `+`) and the caller ID (`From`).
+   `+`) and the caller ID (`From`), which may be withheld, anonymous, or absent.
 2. **Prefix match.** The `To` number is matched against the configured `targets`
    keys by **longest matching prefix** (keys begin with `+`; see §4). If **no key
    matches**, the incoming call is rejected with SIP **404** (ARI hangup with an
    unallocated-number cause) and the flow ends.
-3. **Resolve target number.** From the matched entry, strip its `stripDigits` from
-   the `To` number, then convert the remaining leading `00` to `+` (see §4).
-4. **Dial the target.** Create an outbound leg `PJSIP/<resolvedTarget>@<trunk>` and a
-   **mixing bridge**; add the incoming (caller) channel to the bridge. The caller
-   hears normal ringback while the target rings.
+3. **Resolve target number.** From the matched entry, drop the leading `+`, remove
+   the first `stripDigits` digits, and prepend `+` (see §4).
+4. **Dial the target.** Create an outbound leg `PJSIP/<resolvedTarget>@<trunk>`
+   (always `+E.164`; the trunk must accept that format) and a **mixing bridge**; add
+   the incoming (caller) channel to the bridge. The **caller's own caller ID is passed
+   through** as the outbound CLI, so the carrier must permit presenting it. The caller
+   hears normal ringback while the target rings. There is **no separate dial timeout**:
+   the target rings until the caller gives up or the inbound INVITE transaction times
+   out.
 5. **On answer (200 OK).** When the outbound (callee) leg is answered and joins the
    bridge, the caller↔callee call is live. The sidecar then:
    - opens the target **WebSocket** (URL + optional `headers` from the entry),
@@ -117,7 +121,10 @@ Given incoming `To` number `N` (starts with `+`):
 ## 5. WebSocket protocol
 
 The sidecar is a WebSocket **client**, connecting to `entry.url` with any configured
-`entry.headers` on the handshake (e.g. `Authorization`).
+`entry.headers` on the handshake (e.g. `Authorization`). For `wss://` targets the
+server certificate is verified by default; setting
+`dangerouslyIgnoreTlsVerificationErrors: true` on the target disables that check
+(insecure — testing only).
 
 ### Framing
 
@@ -143,24 +150,24 @@ custom in-band header is used.
   "audio": {
     "sampleRate": 8000,
     "format": "s16le",
-    "captureChannels": 2,
-    "injectChannels": 2,
+    "captureChannels": 1,
+    "injectChannels": 1,
     "monoWhisperTarget": "callee"
   }
 }
 ```
 
-| Field                     | Meaning                                                                        |
-| ------------------------- | ------------------------------------------------------------------------------ |
-| `callId`                  | Asterisk channel ID (unique ID) of the **incoming** call                       |
-| `fromNumber`              | Caller ID (E.164)                                                              |
-| `toNumber`                | Resolved E.164 target the call was forwarded to (§4)                           |
-| `startedAt`               | UTC ISO-8601 timestamp of target answer (WebSocket open)                       |
-| `audio.sampleRate`        | `8000` or `16000` (per `wideBandAudio`)                                        |
-| `audio.format`            | Always `"s16le"`                                                               |
-| `audio.captureChannels`   | `2` = stereo (L=caller, R=callee), `1` = mono mix — what the peer **receives** |
-| `audio.injectChannels`    | `2` = stereo (L→caller, R→callee), `1` = mono — what the peer should **send**  |
-| `audio.monoWhisperTarget` | Only meaningful when `injectChannels == 1`: `caller` \| `callee` \| `both`     |
+| Field                     | Meaning                                                                               |
+| ------------------------- | ------------------------------------------------------------------------------------- |
+| `callId`                  | Asterisk channel ID (unique ID) of the **incoming** call                              |
+| `fromNumber`              | Caller ID as received from the trunk (usually E.164); `null` if withheld or anonymous |
+| `toNumber`                | Resolved E.164 target the call was forwarded to (§4)                                  |
+| `startedAt`               | UTC ISO-8601 timestamp of target answer (WebSocket open)                              |
+| `audio.sampleRate`        | `8000` or `16000` (per `wideBandAudio`)                                               |
+| `audio.format`            | Always `"s16le"`                                                                      |
+| `audio.captureChannels`   | `2` = stereo (L=caller, R=callee), `1` = mono mix — what the peer **receives**        |
+| `audio.injectChannels`    | `2` = stereo (L→caller, R→callee), `1` = mono — what the peer should **send**         |
+| `audio.monoWhisperTarget` | Only meaningful when `injectChannels == 1`: `caller` \| `callee` \| `both`            |
 
 ### Audio pacing
 
@@ -219,11 +226,12 @@ An `externalMedia` channel added directly to the caller↔callee mixing bridge:
 
 ### Stereo L/R timing alignment
 
-In stereo capture, the caller and callee arrive as **two independent RTP streams**.
-Asterisk does not synchronize them. The sidecar maintains a small per-stream jitter
-buffer (target ~20–60 ms) and aligns the two streams by RTP timestamp before
-interleaving, so left and right stay coherent. Late/lost packets are filled with
-silence to preserve alignment.
+In stereo capture, the caller and callee arrive as **two independent RTP streams**
+with separate SSRCs and unrelated timestamp bases, so their timestamps cannot be
+compared directly. Both are driven by Asterisk's shared 20 ms tick, so the sidecar
+aligns them by **arrival / packet order** through a small per-stream jitter buffer
+(target ~20–60 ms), tolerating a small fixed L/R skew. Late or lost packets are
+filled with silence to keep the two channels sample-aligned.
 
 ### RTP port allocation
 
@@ -241,6 +249,14 @@ range from `rtp.conf`), the two RTP port ranges are on **different addresses and
 freely overlap** — no disjointness is required. The sidecar's pool must only be free
 on `127.0.0.1`. Pool size bounds the number of concurrent calls
 (≈ `(rtpPortEnd − rtpPortStart) / channelsPerCall`).
+
+### Codecs
+
+The trunk endpoint's baked codec allow-list is, in order, **`ulaw`, `alaw`, and
+`AMR-WB`** (wideband). Asterisk transcodes whatever the call negotiates to **`slin`**
+(8 kHz) or **`slin16`** (16 kHz) for the `externalMedia` taps, per each target's
+`wideBandAudio`. `AMR-WB` requires the AMR-WB codec module to be present in the
+`asterisk` image — it is not part of the base Asterisk build.
 
 ## 7. Lifecycle & error handling
 
@@ -282,6 +298,11 @@ audio far faster than real time, excess is dropped (with a log) rather than grow
 unbounded. Captured audio to the peer relies on WebSocket backpressure; if the peer
 cannot keep up, frames are dropped rather than buffered without limit.
 
+**Sidecar restart / redeploy:** the sidecar *is* the ARI Stasis application, so when
+it disconnects (restart, crash, redeploy) Asterisk removes its Stasis-controlled
+channels — **all active calls end**. There is no call hand-off across restarts;
+redeploy during a maintenance window.
+
 **Resource cleanup:** on any teardown path, all provisioned ARI channels and bound
 UDP ports are released. Ports return to the pool for reuse.
 
@@ -316,15 +337,16 @@ targets:
                                    # that stands in for '+'); then prepend '+'.
                                    # +00240049151… - 6 digits → 49151… → +49151…
     url: "wss://example.com/audio" # target WebSocket
-    captureMono: false             # false: WS receives stereo (L=caller, R=callee)
-                                   # true:  WS receives mono mix
-    injectMono: false              # false: WS sends stereo (L→caller, R→callee)
-                                   # true:  WS sends mono, routed by monoWhisperTarget
+    captureMono: true              # true:  WS receives mono mix
+                                   # false: WS receives stereo (L=caller, R=callee)
+    injectMono: true               # true:  WS sends mono, routed by monoWhisperTarget
+                                   # false: WS sends stereo (L→caller, R→callee)
     monoWhisperTarget: callee      # caller | callee | both (only if injectMono: true)
     wideBandAudio: false           # false: 8 kHz (slin); true: 16 kHz (slin16)
     endCallOnWsClose: clean        # never | always | clean  — end call when the WS
                                    # closes (see §7): clean=only on a clean close,
                                    # always=on any close, never=never
+    dangerouslyIgnoreTlsVerificationErrors: false  # true = skip wss:// cert checks (insecure)
     headers:                       # optional extra WebSocket handshake headers
       Authorization: "Bearer ..."
 
@@ -335,30 +357,37 @@ targets:
 
 ### Field reference
 
-| Field                           | Type   | Default  | Notes                                                                                                                              |
-| ------------------------------- | ------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `publicIp`                      | string | —        | Host's public address; Asterisk binds SIP + RTP here. Required.                                                                    |
-| `trunk.host`                    | string | —        | Carrier SIP server. Required.                                                                                                      |
-| `trunk.port`                    | int    | `5060`   |                                                                                                                                    |
-| `trunk.username`                | string | —        | Trunk auth user.                                                                                                                   |
-| `trunk.password`                | string | —        | Trunk auth secret.                                                                                                                 |
-| `trunk.register`                | bool   | `true`   | REGISTER vs. static IP trunk.                                                                                                      |
-| `trunk.transport`               | enum   | `udp`    | `udp` \| `tcp` \| `tls`.                                                                                                           |
-| `rtpPortStart`                  | int    | —        | First UDP port of the sidecar's externalMedia pool (bound on `127.0.0.1`).                                                         |
-| `rtpPortEnd`                    | int    | —        | Last UDP port (inclusive). Pool size bounds concurrency.                                                                           |
-| `targets`                       | map    | —        | Prefix key (E.164 with `+`) → target config.                                                                                       |
-| `targets.<k>.stripDigits`       | int    | —        | Digits dropped after the To number's leading `+` (dial code + the `00` standing in for `+`); the result is then prefixed with `+`. |
-| `targets.<k>.url`               | string | —        | Target WebSocket URL (`ws://` or `wss://`).                                                                                        |
-| `targets.<k>.captureMono`       | bool   | `false`  | Mono mix vs. stereo capture (WS receives).                                                                                         |
-| `targets.<k>.injectMono`        | bool   | `false`  | Mono vs. stereo inject (WS sends).                                                                                                 |
-| `targets.<k>.monoWhisperTarget` | enum   | `callee` | `caller` \| `callee` \| `both`; used only if `injectMono`.                                                                         |
-| `targets.<k>.wideBandAudio`     | bool   | `false`  | 16 kHz vs. 8 kHz PCM.                                                                                                              |
-| `targets.<k>.endCallOnWsClose`  | enum   | `clean`  | `never` \| `always` \| `clean`; end call on WebSocket close (§7).                                                                  |
-| `targets.<k>.headers`           | map    | `{}`     | Extra WebSocket handshake headers.                                                                                                 |
+| Field                                                | Type   | Default  | Notes                                                                                                                              |
+| ---------------------------------------------------- | ------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `publicIp`                                           | string | —        | Host's public address; Asterisk binds SIP + RTP here. Required.                                                                    |
+| `trunk.host`                                         | string | —        | Carrier SIP server. Required.                                                                                                      |
+| `trunk.port`                                         | int    | `5060`   |                                                                                                                                    |
+| `trunk.username`                                     | string | —        | Trunk auth user.                                                                                                                   |
+| `trunk.password`                                     | string | —        | Trunk auth secret.                                                                                                                 |
+| `trunk.register`                                     | bool   | `true`   | REGISTER vs. static IP trunk.                                                                                                      |
+| `trunk.transport`                                    | enum   | `udp`    | `udp` \| `tcp` \| `tls`.                                                                                                           |
+| `rtpPortStart`                                       | int    | —        | First UDP port of the sidecar's externalMedia pool (bound on `127.0.0.1`).                                                         |
+| `rtpPortEnd`                                         | int    | —        | Last UDP port (inclusive). Pool size bounds concurrency.                                                                           |
+| `targets`                                            | map    | —        | Prefix key (E.164 with `+`) → target config.                                                                                       |
+| `targets.<k>.stripDigits`                            | int    | —        | Digits dropped after the To number's leading `+` (dial code + the `00` standing in for `+`); the result is then prefixed with `+`. |
+| `targets.<k>.url`                                    | string | —        | Target WebSocket URL (`ws://` or `wss://`).                                                                                        |
+| `targets.<k>.captureMono`                            | bool   | `true`   | Mono mix vs. stereo capture (WS receives).                                                                                         |
+| `targets.<k>.injectMono`                             | bool   | `true`   | Mono vs. stereo inject (WS sends).                                                                                                 |
+| `targets.<k>.monoWhisperTarget`                      | enum   | `callee` | `caller` \| `callee` \| `both`; used only if `injectMono`.                                                                         |
+| `targets.<k>.wideBandAudio`                          | bool   | `false`  | 16 kHz vs. 8 kHz PCM.                                                                                                              |
+| `targets.<k>.endCallOnWsClose`                       | enum   | `clean`  | `never` \| `always` \| `clean`; end call on WebSocket close (§7).                                                                  |
+| `targets.<k>.dangerouslyIgnoreTlsVerificationErrors` | bool   | `false`  | Skip `wss://` TLS certificate verification (insecure; testing only).                                                               |
+| `targets.<k>.headers`                                | map    | `{}`     | Extra WebSocket handshake headers.                                                                                                 |
 
 Internal, non-configurable settings baked into the images: ARI HTTP bind
 (`127.0.0.1`) and credentials (localhost-only), Asterisk's own `rtp.conf` range, the
 sidecar RTP bind address (`127.0.0.1`), and the Stasis app name.
+
+> **Host-loopback trust:** under `network_mode: host`, `127.0.0.1` is the *host's*
+> loopback, so ARI (`127.0.0.1:8088`, with its baked credentials) and the sidecar's
+> RTP sockets are reachable by **any process on the host**, not only the paired
+> container. The design assumes the host is trusted; nothing internal is exposed on
+> the public interface.
 
 ## 9. Deployment
 
@@ -403,7 +432,10 @@ Asterisk's range — different bind addresses). Deployment remains one
 
 - WebSocket reconnect / call-audio resumption after an unexpected drop.
 - Multiple trunks or per-target trunks (single fixed trunk only).
-- Per-target `stripDigits` variations beyond a literal prefix strip.
+- Number rewriting beyond a fixed `stripDigits` digit count (no regex/pattern
+  transforms); outbound is always dialed as `+E.164`.
+- Configurable dial/answer timeout or maximum call duration (dialing is bounded only
+  by the inbound call).
 - Raw PJSIP config escape hatch (`rawPjsipInclude`) — add if an exotic carrier option
   is needed.
 - Recording, transcription, or any audio processing beyond interleaving/pacing.
