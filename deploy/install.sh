@@ -37,12 +37,14 @@ Pin-Priority: 990
 EOF
 
 apt-get update
-# nodejs runs the sidecar, python3-yaml the config renderer; the AMR libs are
-# listed explicitly so the codec modules always have their runtime deps.
-DEBIAN_FRONTEND=noninteractive apt-get install -y \
-  asterisk asterisk-modules \
-  libopencore-amrnb0 libopencore-amrwb0 libvo-amrwbenc0 \
-  nodejs python3-yaml ca-certificates
+# -t sid (the reference role's default_release) lets apt satisfy the asterisk
+# packages' dependencies from sid where trixie's versions are too old —
+# currently that pulls in sid's glibc and libsnmp. Without it the
+# priority-100 pin blocks those upgrades and resolution fails. The AMR(-WB)
+# libraries are hard dependencies of asterisk-modules and come in with it.
+DEBIAN_FRONTEND=noninteractive apt-get install -y -t sid asterisk asterisk-modules
+# nodejs runs the sidecar, python3-yaml the config renderer — from trixie.
+DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs python3-yaml ca-certificates
 
 # Run Asterisk as the asterisk user (Debian's unit reads these).
 for kv in 'AST_USER="asterisk"' 'AST_GROUP="asterisk"' 'RUNASTERISK="yes"'; do

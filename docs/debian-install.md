@@ -33,6 +33,14 @@ family pinned high (priority 990) to come from sid:
 | `/etc/apt/preferences.d/90-sid`              | Pins **all** sid packages to priority 100 (never auto-upgrade)  |
 | `/etc/apt/preferences.d/91-asterisk-sid`     | Pins `asterisk asterisk-* libasterisk* dahdi* libpri*` to 990   |
 
+The asterisk packages themselves are installed with `apt-get install -t sid`
+(the equivalent of the reference role's `default_release: sid`): sid's
+Asterisk is built against newer core libraries than trixie ships, so apt must
+be allowed to satisfy those few dependencies from sid as well — at the time
+of writing that pulls in sid's glibc and net-snmp. Everything not required by
+the asterisk packages stays on trixie, and the low pin keeps later
+`apt upgrade` runs from drifting further onto sid.
+
 The sidecar runs on Debian's own `nodejs` package (20.x — sufficient: the
 compiled output targets ES2022 and all runtime dependencies are pure JS), so
 no third-party Node repository is needed either.
@@ -88,9 +96,9 @@ systemctl restart asterisk rtp2ws-sidecar
 
 ## What install.sh does
 
-1. Adds the pinned sid apt source (table above) and installs `asterisk`,
-   `asterisk-modules`, the AMR runtime libraries, `nodejs`, and
-   `python3-yaml`.
+1. Adds the pinned sid apt source (table above) and installs `asterisk` and
+   `asterisk-modules` with `-t sid` (the AMR runtime libraries come in as
+   their dependencies), plus `nodejs` and `python3-yaml` from trixie.
 2. Configures Asterisk to run as the `asterisk` user
    (`/etc/default/asterisk`).
 3. Copies the pre-built sidecar to `/opt/rtp2ws/sidecar` and the config
