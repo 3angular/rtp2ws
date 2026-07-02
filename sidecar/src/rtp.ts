@@ -34,22 +34,35 @@ export class PortPool {
   }
 }
 
+// RTP fixed header (RFC 3550 §5.1), 12 bytes:
+//   byte 0: V(2 bits) P(1) X(1) CC(4)   byte 1: M(1) PT(7)
+//   bytes 2-3: sequence number          bytes 4-7: timestamp
+//   bytes 8-11: SSRC, then CC × 32-bit CSRCs and an optional extension.
+const RTP_VERSION = 2;
+const RTP_HEADER_BYTES = 12;
+const VERSION_SHIFT = 6; // version is the top 2 bits of byte 0
+const PADDING_FLAG = 0x20;
+const EXTENSION_FLAG = 0x10;
+const CSRC_COUNT_MASK = 0x0f;
+const PAYLOAD_TYPE_MASK = 0x7f; // byte 1; the top (marker) bit is ignored
+const CSRC_BYTES = 4;
+const EXTENSION_HEADER_BYTES = 4; // profile id + length, before the extension words
+
 export interface RtpPacket {
   pt: number;
   payload: Buffer;
 }
 
 export function parseRtp(buf: Buffer): RtpPacket | null {
-  if (buf.length < 12 || buf[0] >> 6 !== 2) return null;
-  let off = 12 + (buf[0] & 0x0f) * 4;
-  if (buf[0] & 0x10) {
-    // header extension
-    if (buf.length < off + 4) return null;
-    off += 4 + buf.readUInt16BE(off + 2) * 4;
+  if (buf.length < RTP_HEADER_BYTES || buf[0] >> VERSION_SHIFT !== RTP_VERSION) return null;
+  let off = RTP_HEADER_BYTES + (buf[0] & CSRC_COUNT_MASK) * CSRC_BYTES;
+  if (buf[0] & EXTENSION_FLAG) {
+    if (buf.length < off + EXTENSION_HEADER_BYTES) return null;
+    off += EXTENSION_HEADER_BYTES + buf.readUInt16BE(off + 2) * 4;
   }
-  const pad = buf[0] & 0x20 ? buf[buf.length - 1] : 0;
+  const pad = buf[0] & PADDING_FLAG ? buf[buf.length - 1] : 0;
   if (buf.length < off + pad) return null;
-  return { pt: buf[1] & 0x7f, payload: buf.subarray(off, buf.length - pad) };
+  return { pt: buf[1] & PAYLOAD_TYPE_MASK, payload: buf.subarray(off, buf.length - pad) };
 }
 
 // One externalMedia RTP leg: receives captured RTP from Asterisk on a loopback
@@ -83,13 +96,13 @@ export class RtpLeg {
   // Sends one PCM frame; samples = payload.length / 2 (s16 mono).
   send(payload: Buffer): void {
     if (!this.dest) return;
-    const buf = Buffer.alloc(12 + payload.length);
-    buf[0] = 0x80;
-    buf[1] = this.pt;
-    buf.writeUInt16BE(this.seq, 2);
-    buf.writeUInt32BE(this.ts, 4);
-    buf.writeUInt32BE(this.ssrc, 8);
-    payload.copy(buf, 12);
+    const buf = Buffer.alloc(RTP_HEADER_BYTES + payload.length);
+    buf[0] = RTP_VERSION << VERSION_SHIFT; // no padding/extension/CSRCs
+    buf[1] = this.pt; // marker bit unset
+    buf.writeUInt16BE(this.seq, 2); // sequence number
+    buf.writeUInt32BE(this.ts, 4); // timestamp
+    buf.writeUInt32BE(this.ssrc, 8); // SSRC
+    payload.copy(buf, RTP_HEADER_BYTES);
     this.seq = (this.seq + 1) & 0xffff;
     this.ts = (this.ts + payload.length / 2) >>> 0;
     this.socket.send(buf, this.dest.port, this.dest.address);
