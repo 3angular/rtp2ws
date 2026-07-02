@@ -1,6 +1,6 @@
-# Asterisk built from source with the AMR-WB codec module compiled in
-# (github.com/traud/asterisk-amr) — stock Asterisk has no AMR support at all,
-# and the trunk's codec list is PCMA + AMR-WB (spec §6).
+# Asterisk 22 (current LTS) built from source with the AMR-WB codec module
+# compiled in (github.com/traud/asterisk-amr) — stock Asterisk has no AMR
+# support at all, and the trunk's codec list is AMR-WB + PCMA (spec §6).
 FROM debian:trixie-slim AS build
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -11,10 +11,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /usr/src
-RUN wget -q https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20-current.tar.gz \
- && tar xzf asterisk-20-current.tar.gz \
- && rm asterisk-20-current.tar.gz \
- && mv asterisk-20* asterisk
+RUN wget -q https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-22-current.tar.gz \
+ && tar xzf asterisk-22-current.tar.gz \
+ && rm asterisk-22-current.tar.gz \
+ && mv asterisk-22* asterisk
 
 # Drop the AMR codec sources into the tree, apply its core patches, and
 # regenerate the build system (per the asterisk-amr README).
