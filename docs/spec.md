@@ -244,11 +244,13 @@ on `127.0.0.1`. Pool size bounds the number of concurrent calls
 
 ### Codecs
 
-The trunk endpoint's baked codec allow-list is, in order, **`ulaw`, `alaw`, and
-`AMR-WB`** (wideband). Asterisk transcodes whatever the call negotiates to **`slin`**
-(8 kHz) or **`slin16`** (16 kHz) for the `externalMedia` taps, per each target's
-`wideBandAudio`. `AMR-WB` requires the AMR-WB codec module to be present in the
-`asterisk` image — it is not part of the base Asterisk build.
+The trunk endpoint's baked codec allow-list is, in order, **`AMR-WB`**
+(wideband, preferred) **and `alaw` (PCMA)** — the only two codecs the carrier
+supports. Asterisk
+transcodes whatever the call negotiates to **`slin`** (8 kHz) or **`slin16`**
+(16 kHz) for the `externalMedia` taps, per each target's `wideBandAudio`.
+`AMR-WB` is not part of the base Asterisk build; the `asterisk` image compiles
+in the third-party codec module ([traud/asterisk-amr](https://github.com/traud/asterisk-amr)).
 
 ## 7. Lifecycle & error handling
 

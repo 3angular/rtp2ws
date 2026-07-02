@@ -1,0 +1,18 @@
+# network_mode: host is required so Asterisk owns the host's SIP/RTP ports
+# directly (no NAT for RTP) and the containers talk over 127.0.0.1 (spec §9).
+services:
+  asterisk:
+    build: ./asterisk
+    image: rtp2ws-asterisk:latest
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ./rtp2ws.yaml:/config/rtp2ws.yaml:ro
+  sidecar:
+    build: ./sidecar
+    image: rtp2ws-sidecar:latest
+    network_mode: host
+    restart: unless-stopped
+    depends_on: [ asterisk ]
+    volumes:
+      - ./rtp2ws.yaml:/config/rtp2ws.yaml:ro
