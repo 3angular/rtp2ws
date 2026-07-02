@@ -10,15 +10,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     file patch bzip2 python3 \
  && rm -rf /var/lib/apt/lists/*
 
+# Pinned for reproducible builds; releases move to .../asterisk/releases/ once
+# superseded, hence the fallback URL.
+ARG ASTERISK_VERSION=22.10.1
+ARG ASTERISK_AMR_COMMIT=420ab33f236e15955351e45bf9fbb256228afe21
+
 WORKDIR /usr/src
-RUN wget -q https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-22-current.tar.gz \
- && tar xzf asterisk-22-current.tar.gz \
- && rm asterisk-22-current.tar.gz \
- && mv asterisk-22* asterisk
+RUN (wget -q "https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-${ASTERISK_VERSION}.tar.gz" \
+     || wget -q "https://downloads.asterisk.org/pub/telephony/asterisk/releases/asterisk-${ASTERISK_VERSION}.tar.gz") \
+ && tar xzf "asterisk-${ASTERISK_VERSION}.tar.gz" \
+ && rm "asterisk-${ASTERISK_VERSION}.tar.gz" \
+ && mv "asterisk-${ASTERISK_VERSION}" asterisk
 
 # Drop the AMR codec sources into the tree, apply its core patches, and
 # regenerate the build system (per the asterisk-amr README).
-RUN git clone --depth 1 https://github.com/traud/asterisk-amr.git \
+RUN git clone https://github.com/traud/asterisk-amr.git \
+ && git -C asterisk-amr checkout --quiet "${ASTERISK_AMR_COMMIT}" \
  && cp asterisk-amr/codecs/* asterisk/codecs/ \
  && cp asterisk-amr/res/* asterisk/res/ \
  && cp asterisk-amr/include/asterisk/* asterisk/include/asterisk/ \

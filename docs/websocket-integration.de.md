@@ -51,17 +51,17 @@ Metadaten-Frame wird nicht gesendet.
 }
 ```
 
-| Feld                      | Typ    | Bedeutung                                                                                                                                                        |
-| ------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `callId`                  | string | Eindeutige Kennung dieses Anrufs. Als opak behandeln.                                                                                                            |
-| `fromNumber`              | string | Rufnummer des Anrufers, meist E.164 (`+…`); `null`, wenn unterdrückt oder anonym.                                                                                |
-| `toNumber`                | string | Rufnummer des angerufenen Teilnehmers, E.164 (`+…`).                                                                                                             |
-| `startedAt`               | string | Zeitpunkt der Anrufannahme, UTC ISO-8601.                                                                                                                        |
-| `audio.sampleRate`        | int    | Abtastrate in Hz: `8000` oder `16000`.                                                                                                                           |
-| `audio.format`            | string | Immer `"s16le"` — 16 Bit vorzeichenbehaftet, Little-Endian.                                                                                                      |
-| `audio.captureChannels`   | int    | Kanäle im Audio, das **das Zielsystem empfängt**: `2` = Stereo, `1` = Mono.                                                                                      |
-| `audio.injectChannels`    | int    | Kanäle im Audio, das **das Zielsystem senden darf**: `2` = Stereo, `1` = Mono.                                                                                   |
-| `audio.monoWhisperTarget` | string | Nur relevant bei `injectChannels == 1`: welcher Teilnehmer das Mono-Audio des Zielsystems hört — `caller` (Anrufer), `callee` (Angerufener) oder `both` (beide). |
+| Feld                      | Typ            | Bedeutung                                                                                                                                                        |
+| ------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `callId`                  | string         | Eindeutige Kennung dieses Anrufs. Als opak behandeln.                                                                                                            |
+| `fromNumber`              | string \| null | Rufnummer des Anrufers, meist E.164 (`+…`); `null`, wenn unterdrückt oder anonym.                                                                                |
+| `toNumber`                | string         | Rufnummer des angerufenen Teilnehmers, E.164 (`+…`).                                                                                                             |
+| `startedAt`               | string         | Zeitpunkt der Anrufannahme, UTC ISO-8601.                                                                                                                        |
+| `audio.sampleRate`        | int            | Abtastrate in Hz: `8000` oder `16000`.                                                                                                                           |
+| `audio.format`            | string         | Immer `"s16le"` — 16 Bit vorzeichenbehaftet, Little-Endian.                                                                                                      |
+| `audio.captureChannels`   | int            | Kanäle im Audio, das **das Zielsystem empfängt**: `2` = Stereo, `1` = Mono.                                                                                      |
+| `audio.injectChannels`    | int            | Kanäle im Audio, das **das Zielsystem senden darf**: `2` = Stereo, `1` = Mono.                                                                                   |
+| `audio.monoWhisperTarget` | string         | Nur relevant bei `injectChannels == 1`: welcher Teilnehmer das Mono-Audio des Zielsystems hört — `caller` (Anrufer), `callee` (Angerufener) oder `both` (beide). |
 
 Der `audio`-Block bestimmt für diesen Anruf vollständig das Byte-Layout in beiden
 Richtungen. Das Zielsystem liest ihn aus, bevor es Audio verarbeitet, und setzt keine

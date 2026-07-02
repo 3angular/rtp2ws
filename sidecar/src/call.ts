@@ -237,8 +237,10 @@ export class CallSession {
 
   // Snoop on one party bridged with its own externalMedia leg: spy captures
   // that party's own voice, whisper injects audio only that party hears.
-  // ponytail: spy/whisper in-out orientation follows spec §6; the spec itself
-  // flags it as needing verification against live Asterisk — flip here if reversed.
+  // Direction verified against res_stasis_snoop.c (Asterisk 22): spy 'in' →
+  // AUDIOHOOK READ (frames from the party = their voice), whisper 'out' →
+  // AUDIOHOOK WRITE (frames to the party = what they hear). Confirm once with
+  // a live call on first deployment; flip here if reversed.
   private async snoopTap(party: Channel, spy: boolean, whisper: boolean): Promise<Tap> {
     const rtp = await this.newLeg();
     try {

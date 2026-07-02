@@ -13,7 +13,7 @@ cp rtp2ws.example.yaml rtp2ws.yaml   # then edit: publicIp, trunk, targets
 docker compose up --build -d
 ```
 
-Layout: `asterisk/` (Asterisk 20 image; renders its config from the mounted
+Layout: `asterisk/` (Asterisk 22 image; renders its config from the mounted
 YAML at startup), `sidecar/` (TypeScript ARI app + RTP↔WebSocket
 bridge; `npm test` runs its unit tests), `docker-compose.yaml` (both containers
 on host networking).

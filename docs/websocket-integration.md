@@ -48,17 +48,17 @@ be **BINARY** audio frames only (§5) — do not send a metadata frame.
 }
 ```
 
-| Field                     | Type   | Meaning                                                                                                                   |
-| ------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `callId`                  | string | Unique identifier for this call. Treat as opaque.                                                                         |
-| `fromNumber`              | string | Caller's number, usually E.164 (`+…`); `null` if withheld or anonymous.                                                   |
-| `toNumber`                | string | Called party's number, E.164 (`+…`).                                                                                      |
-| `startedAt`               | string | Call-answer time, UTC ISO-8601.                                                                                           |
-| `audio.sampleRate`        | int    | Sample rate in Hz: `8000` or `16000`.                                                                                     |
-| `audio.format`            | string | Always `"s16le"` — 16-bit signed, little-endian.                                                                          |
-| `audio.captureChannels`   | int    | Channels in the audio **the target system receives**: `2` = stereo, `1` = mono.                                           |
-| `audio.injectChannels`    | int    | Channels in the audio **the target system may send**: `2` = stereo, `1` = mono.                                           |
-| `audio.monoWhisperTarget` | string | Only relevant if `injectChannels == 1`: which party hears the target system's mono audio — `caller`, `callee`, or `both`. |
+| Field                     | Type           | Meaning                                                                                                                   |
+| ------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `callId`                  | string         | Unique identifier for this call. Treat as opaque.                                                                         |
+| `fromNumber`              | string \| null | Caller's number, usually E.164 (`+…`); `null` if withheld or anonymous.                                                   |
+| `toNumber`                | string         | Called party's number, E.164 (`+…`).                                                                                      |
+| `startedAt`               | string         | Call-answer time, UTC ISO-8601.                                                                                           |
+| `audio.sampleRate`        | int            | Sample rate in Hz: `8000` or `16000`.                                                                                     |
+| `audio.format`            | string         | Always `"s16le"` — 16-bit signed, little-endian.                                                                          |
+| `audio.captureChannels`   | int            | Channels in the audio **the target system receives**: `2` = stereo, `1` = mono.                                           |
+| `audio.injectChannels`    | int            | Channels in the audio **the target system may send**: `2` = stereo, `1` = mono.                                           |
+| `audio.monoWhisperTarget` | string         | Only relevant if `injectChannels == 1`: which party hears the target system's mono audio — `caller`, `callee`, or `both`. |
 
 The `audio` block fully determines the byte layout in both directions for this call.
 Read it before processing audio; do not assume fixed values.

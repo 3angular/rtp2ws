@@ -213,8 +213,11 @@ An `externalMedia` channel added directly to the caller↔callee mixing bridge:
 
 > **Snoop direction caveat:** Asterisk's `spy`/`whisper` in/out conventions are easy
 > to invert. The intent above is: capture each party's *own* voice; inject so *only*
-> the targeted party hears it. The exact `in`/`out` values MUST be verified against
-> live Asterisk behavior during implementation and corrected if reversed.
+> the targeted party hears it. Verified against the Asterisk 22 source
+> (`res_stasis_snoop.c`): `spy: in` maps to the audiohook READ direction (frames
+> coming *from* the party — their own voice) and `whisper: out` maps to WRITE
+> (frames going *to* the party — what they hear), matching the intent. Confirm
+> once with a live call on first deployment and flip in the sidecar if reversed.
 
 ### Stereo L/R timing alignment
 
@@ -228,8 +231,10 @@ filled with silence to keep the two channels sample-aligned.
 ### RTP port allocation
 
 The sidecar binds UDP listening ports on **`127.0.0.1`** for its `externalMedia`
-legs, from the configured pool `rtpPortStart … rtpPortEnd` (one port per
-`externalMedia` leg: 1 for mono-only topologies, 2 for stereo). It passes
+legs, from the configured pool `rtpPortStart … rtpPortEnd` — one port per
+`externalMedia` leg, i.e. 1–3 ports per call depending on the topology row
+(see the matrix above: 1 for the all-mono case, 2 for rows sharing snoop legs,
+3 where a bridge tap coexists with two snoops). It passes
 `external_host = 127.0.0.1:<port>` to Asterisk. Asterisk sends captured RTP there;
 the sidecar sends injected RTP back to the local RTP port Asterisk reports for each
 `externalMedia` channel (via the channel's `UNICASTRTP_LOCAL_ADDRESS` /

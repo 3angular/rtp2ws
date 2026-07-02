@@ -51,6 +51,10 @@ allow=amrwb
 allow=alaw
 aors=trunk
 direct_media=no
+; bind call RTP to publicIp (spec §2); without this it binds the wildcard
+; address and could collide with the sidecar's loopback pool
+media_address={public_ip}
+bind_rtp_to_media_address=yes
 rtp_symmetric=yes
 force_rport=yes
 rewrite_contact=yes

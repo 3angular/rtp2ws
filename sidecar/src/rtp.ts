@@ -12,8 +12,8 @@ export class PortPool {
   async bind(): Promise<{ socket: dgram.Socket; port: number }> {
     while (this.free.length > 0) {
       const port = this.free.shift()!;
+      const socket = dgram.createSocket('udp4');
       try {
-        const socket = dgram.createSocket('udp4');
         await new Promise<void>((resolve, reject) => {
           socket.once('error', reject);
           socket.bind(port, '127.0.0.1', () => {
@@ -23,7 +23,12 @@ export class PortPool {
         });
         return { socket, port };
       } catch {
-        // in use by someone else on loopback — burn it and try the next
+        // in use by someone else on loopback — burn the port and try the next
+        try {
+          socket.close();
+        } catch {
+          /* never bound */
+        }
       }
     }
     throw new Error('RTP port pool exhausted');
