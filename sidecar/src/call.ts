@@ -220,19 +220,27 @@ export class CallSession {
     });
   }
 
+  // On any failure after channel creation the channel is hung up before
+  // rethrowing — a tap that never reached this.taps is unreachable for
+  // releaseTaps(), so each step must clean up its own debris (spec §7).
   private async externalMedia(rtp: RtpLeg): Promise<Channel> {
     const em = this.ari.Channel();
-    const started = this.stasisStarted(em);
-    await em.externalMedia({
-      app: STASIS_APP,
-      external_host: `127.0.0.1:${rtp.port}`,
-      format: this.emFormat(),
-    });
-    await started;
-    const address = await em.getChannelVar({ variable: 'UNICASTRTP_LOCAL_ADDRESS' }).catch(() => null);
-    const port = await em.getChannelVar({ variable: 'UNICASTRTP_LOCAL_PORT' });
-    rtp.dest = { address: address?.value || '127.0.0.1', port: Number(port.value) };
-    return em;
+    try {
+      const started = this.stasisStarted(em);
+      await em.externalMedia({
+        app: STASIS_APP,
+        external_host: `127.0.0.1:${rtp.port}`,
+        format: this.emFormat(),
+      });
+      await started;
+      const address = await em.getChannelVar({ variable: 'UNICASTRTP_LOCAL_ADDRESS' }).catch(() => null);
+      const port = await em.getChannelVar({ variable: 'UNICASTRTP_LOCAL_PORT' });
+      rtp.dest = { address: address?.value || '127.0.0.1', port: Number(port.value) };
+      return em;
+    } catch (err) {
+      await em.hangup().catch(() => {});
+      throw err;
+    }
   }
 
   // Snoop on one party bridged with its own externalMedia leg: spy captures
@@ -243,8 +251,10 @@ export class CallSession {
   // a live call on first deployment; flip here if reversed.
   private async snoopTap(party: Channel, spy: boolean, whisper: boolean): Promise<Tap> {
     const rtp = await this.newLeg();
+    let snoop: Channel | undefined;
+    let em: Channel | undefined;
     try {
-      const snoop = this.ari.Channel();
+      snoop = this.ari.Channel();
       const started = this.stasisStarted(snoop);
       await this.ari.channels.snoopChannelWithId({
         channelId: party.id,
@@ -254,15 +264,17 @@ export class CallSession {
         whisper: whisper ? 'out' : 'none',
       });
       await started;
-      const em = await this.externalMedia(rtp);
+      em = await this.externalMedia(rtp);
       const bridge = this.ari.Bridge();
       await bridge.create({ type: 'mixing' });
-      this.snoopBridges.push(bridge);
+      this.snoopBridges.push(bridge); // destroyed via releaseTaps() from here on
       await bridge.addChannel({ channel: [snoop.id, em.id] });
       return { rtp, emChannel: em, snoopChannel: snoop };
     } catch (err) {
       rtp.close();
       this.pool.release(rtp.port);
+      await em?.hangup().catch(() => {});
+      await snoop?.hangup().catch(() => {});
       throw err;
     }
   }
@@ -271,13 +283,15 @@ export class CallSession {
   // and anything we send is heard by both parties.
   private async bridgeTap(): Promise<Tap> {
     const rtp = await this.newLeg();
+    let em: Channel | undefined;
     try {
-      const em = await this.externalMedia(rtp);
+      em = await this.externalMedia(rtp);
       await this.bridge!.addChannel({ channel: em.id });
       return { rtp, emChannel: em };
     } catch (err) {
       rtp.close();
       this.pool.release(rtp.port);
+      await em?.hangup().catch(() => {});
       throw err;
     }
   }
