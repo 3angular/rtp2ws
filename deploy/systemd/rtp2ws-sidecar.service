@@ -1,0 +1,16 @@
+[Unit]
+Description=rtp2ws sidecar (ARI Stasis app + RTP-WebSocket bridge)
+# Ordering is a nicety only: the sidecar retries the ARI connection until
+# Asterisk is reachable (spec §2).
+After=network-online.target asterisk.service
+Wants=network-online.target
+
+[Service]
+User=rtp2ws
+Environment=RTP2WS_CONFIG=/etc/rtp2ws/rtp2ws.yaml
+ExecStart=/usr/bin/node /opt/rtp2ws/sidecar/dist/src/index.js
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

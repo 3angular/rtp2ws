@@ -427,6 +427,10 @@ address; the sidecar pool must be free on loopback (it may numerically overlap
 Asterisk's range — different bind addresses). Deployment remains one
 `docker compose up`.
 
+A secondary, container-less deployment — Asterisk from Debian packages and the
+sidecar as systemd services on a Debian 13 host, installed from a GitHub
+release tarball — is described in [debian-install.md](debian-install.md).
+
 ## 10. Out of scope / deferred
 
 - WebSocket reconnect / call-audio resumption after an unexpected drop.

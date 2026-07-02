@@ -1,0 +1,47 @@
+# Cutting a release: push a semver tag (git tag v1.2.3 && git push origin v1.2.3).
+# Builds/tests the sidecar and publishes rtp2ws-vX.Y.Z.tar.gz — the compiled
+# sidecar plus everything install.sh needs on a clean Debian 13 host
+# (docs/debian-install.md).
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: sidecar/package-lock.json
+
+      - name: Build and test sidecar
+        working-directory: sidecar
+        run: |
+          npm ci
+          npm test
+          npm ci --omit=dev   # strip devDependencies; dist/ is kept
+
+      - name: Stage release tarball
+        run: |
+          stage="rtp2ws-$GITHUB_REF_NAME"
+          mkdir -p "$stage/sidecar" "$stage/asterisk"
+          cp -a sidecar/dist sidecar/node_modules sidecar/package.json "$stage/sidecar/"
+          rm -rf "$stage/sidecar/dist/test"
+          cp asterisk/render-config.py "$stage/asterisk/"
+          cp -a deploy/systemd "$stage/systemd"
+          cp deploy/install.sh rtp2ws.example.yaml "$stage/"
+          tar czf "$stage.tar.gz" "$stage"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" "rtp2ws-$GITHUB_REF_NAME.tar.gz" --title "$GITHUB_REF_NAME" --generate-notes
