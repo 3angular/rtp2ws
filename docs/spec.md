@@ -35,15 +35,7 @@ Because Asterisk binds `publicIp` while the sidecar binds `127.0.0.1`, their RTP
 ranges may freely overlap (§6). Service-name DNS is unavailable under host
 networking — communication is by loopback address, not container name.
 
-```
-   PSTN/SIP          ┌────────────── host network — network_mode: host ───────────────┐
-   caller ──SIP──────┤  Asterisk ── ARI (REST+WS, 127.0.0.1) ──► Sidecar (Node/TS)    │
-          ◄──audio───┤    │  ▲                                     │  ▲               │
-                     │    │  │  RTP (externalMedia, UDP)           │  │               │
-   target ──SIP──────┤    ▼  │                                     ▼  │               │
-   (via trunk)◄─audio┤  media taps                         target WebSocket (wss://)  │
-                     └────────────────────────────────────────────────────────────────┘
-```
+![RTP2WS architecture: an incoming SIP call reaches Asterisk on the host network; Asterisk exposes ARI to the sidecar and streams externalMedia RTP over UDP to it; the sidecar bridges audio to the target WebSocket (wss://); Asterisk dials the target via the SIP trunk.](architecture.svg)
 
 **Why TypeScript:** the workload is I/O-bound (shuffling PCM buffers between UDP and
 a WebSocket, plus light L/R interleaving) — Asterisk does all heavy media work.

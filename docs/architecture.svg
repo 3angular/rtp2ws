@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 400" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-size="13">
+  <defs>
+    <marker id="arw" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto-start-reverse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#334155"/>
+    </marker>
+    <marker id="arwB" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto-start-reverse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#2563eb"/>
+    </marker>
+  </defs>
+
+  <!-- host network container -->
+  <rect x="230" y="20" width="510" height="360" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-dasharray="6 4"/>
+  <text x="485" y="42" text-anchor="middle" fill="#64748b" font-size="12" font-weight="600">host network — network_mode: host</text>
+
+  <!-- Asterisk box -->
+  <rect x="260" y="90" width="170" height="90" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="345" y="122" text-anchor="middle" fill="#1e1b4b" font-weight="700">Asterisk</text>
+  <text x="345" y="142" text-anchor="middle" fill="#3730a3" font-size="11">SIP · RTP · transcode</text>
+  <text x="345" y="158" text-anchor="middle" fill="#3730a3" font-size="11">media taps</text>
+
+  <!-- Sidecar box -->
+  <rect x="540" y="90" width="170" height="90" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="625" y="122" text-anchor="middle" fill="#14532d" font-weight="700">Sidecar (Node/TS)</text>
+  <text x="625" y="142" text-anchor="middle" fill="#166534" font-size="11">Stasis app</text>
+  <text x="625" y="158" text-anchor="middle" fill="#166534" font-size="11">RTP ↔ WebSocket bridge</text>
+
+  <!-- ARI arrow -->
+  <line x1="430" y1="112" x2="540" y2="112" stroke="#334155" marker-start="url(#arw)" marker-end="url(#arw)"/>
+  <text x="485" y="105" text-anchor="middle" fill="#334155" font-size="11">ARI (REST+WS, 127.0.0.1)</text>
+  <!-- RTP arrow -->
+  <line x1="540" y1="150" x2="430" y2="150" stroke="#334155" marker-start="url(#arw)" marker-end="url(#arw)"/>
+  <text x="485" y="172" text-anchor="middle" fill="#334155" font-size="11">RTP (externalMedia, UDP)</text>
+
+  <!-- caller -->
+  <rect x="20" y="70" width="150" height="60" rx="8" fill="#f1f5f9" stroke="#475569"/>
+  <text x="95" y="96" text-anchor="middle" fill="#0f172a" font-weight="700">PSTN/SIP caller</text>
+  <line x1="170" y1="90" x2="260" y2="110" stroke="#334155" marker-end="url(#arw)"/>
+  <text x="215" y="82" text-anchor="middle" fill="#334155" font-size="11">SIP</text>
+  <line x1="260" y1="128" x2="170" y2="118" stroke="#2563eb" marker-start="url(#arwB)" marker-end="url(#arwB)"/>
+  <text x="215" y="140" text-anchor="middle" fill="#2563eb" font-size="11">audio</text>
+
+  <!-- target via trunk -->
+  <rect x="20" y="240" width="150" height="60" rx="8" fill="#f1f5f9" stroke="#475569"/>
+  <text x="95" y="266" text-anchor="middle" fill="#0f172a" font-weight="700">target</text>
+  <text x="95" y="284" text-anchor="middle" fill="#475569" font-size="11">(via SIP trunk)</text>
+  <line x1="260" y1="180" x2="170" y2="258" stroke="#334155" marker-end="url(#arw)"/>
+  <text x="205" y="235" text-anchor="middle" fill="#334155" font-size="11">SIP</text>
+  <line x1="260" y1="185" x2="170" y2="285" stroke="#2563eb" marker-start="url(#arwB)" marker-end="url(#arwB)"/>
+  <text x="250" y="270" text-anchor="middle" fill="#2563eb" font-size="11">audio</text>
+
+  <!-- target websocket -->
+  <rect x="555" y="290" width="170" height="60" rx="8" fill="#fef9c3" stroke="#ca8a04"/>
+  <text x="640" y="316" text-anchor="middle" fill="#713f12" font-weight="700">target WebSocket</text>
+  <text x="640" y="334" text-anchor="middle" fill="#854d0e" font-size="11">wss://</text>
+  <line x1="625" y1="180" x2="632" y2="290" stroke="#2563eb" marker-end="url(#arwB)"/>
+  <line x1="655" y1="290" x2="648" y2="180" stroke="#2563eb" marker-end="url(#arwB)"/>
+  <text x="700" y="240" text-anchor="middle" fill="#2563eb" font-size="11">PCM audio</text>
+</svg>

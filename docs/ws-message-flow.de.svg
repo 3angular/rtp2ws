@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 250" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-size="13">
+  <defs>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#334155"/>
+    </marker>
+  </defs>
+
+  <!-- lifeline headers -->
+  <rect x="30" y="15" width="130" height="36" rx="6" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="95" y="38" text-anchor="middle" fill="#1e1b4b" font-weight="700">RTP2WS</text>
+  <rect x="520" y="15" width="130" height="36" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="585" y="38" text-anchor="middle" fill="#14532d" font-weight="700">Zielsystem</text>
+
+  <!-- lifelines -->
+  <line x1="95" y1="51" x2="95" y2="235" stroke="#cbd5e1"/>
+  <line x1="585" y1="51" x2="585" y2="235" stroke="#cbd5e1"/>
+
+  <!-- msg 1 -->
+  <line x1="95" y1="90" x2="585" y2="90" stroke="#334155" marker-end="url(#a)"/>
+  <text x="340" y="82" text-anchor="middle" fill="#0f172a"><tspan fill="#2563eb" font-weight="700">[TEXT]</tspan> Metadaten-JSON</text>
+
+  <!-- msg 2 -->
+  <line x1="95" y1="140" x2="585" y2="140" stroke="#334155" marker-end="url(#a)"/>
+  <text x="340" y="132" text-anchor="middle" fill="#0f172a"><tspan fill="#16a34a" font-weight="700">[BINARY]</tspan> PCM … PCM … PCM …  (kontinuierlich)</text>
+
+  <!-- msg 3 -->
+  <line x1="585" y1="190" x2="95" y2="190" stroke="#334155" marker-end="url(#a)"/>
+  <text x="340" y="182" text-anchor="middle" fill="#0f172a"><tspan fill="#16a34a" font-weight="700">[BINARY]</tspan> PCM … PCM …  (optional, jederzeit)</text>
+</svg>

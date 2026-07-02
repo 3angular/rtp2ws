@@ -1,2 +1,10 @@
 # Generated documents (regenerate from the Markdown sources)
 docs/*.pdf
+
+# macOS
+.DS_Store
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
