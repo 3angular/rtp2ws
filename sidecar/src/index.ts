@@ -1,4 +1,4 @@
-import Ari from 'ari-client';
+import Ari, { type Channel, type Client, type StasisStart } from 'ari-client';
 import { ARI_PASS, ARI_URL, ARI_USER, STASIS_APP, loadConfig } from './config.js';
 import { CallSession } from './call.js';
 import { PortPool } from './rtp.js';
@@ -18,7 +18,7 @@ async function main(): Promise<void> {
 
   // Asterisk may still be booting (compose starts it first, but readiness
   // isn't guaranteed) — retry until ARI is reachable.
-  let ari: any;
+  let ari: Client;
   for (;;) {
     try {
       ari = await Ari.connect(ARI_URL, ARI_USER, ARI_PASS);
@@ -38,7 +38,7 @@ async function main(): Promise<void> {
     process.exit(1);
   });
 
-  ari.on('StasisStart', (event: any, channel: any) => {
+  ari.on('StasisStart', (event: StasisStart, channel: Channel) => {
     try {
       // Channels we created ourselves: originated legs are marked with
       // appArgs, snoop/externalMedia channels by their names.

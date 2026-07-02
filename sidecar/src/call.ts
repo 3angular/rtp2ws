@@ -1,3 +1,4 @@
+import type { Bridge, Channel, ChannelDestroyed, Client } from 'ari-client';
 import WebSocket from 'ws';
 import { STASIS_APP, TargetEntry } from './config.js';
 import { ByteQueue, PortPool, RtpLeg, deinterleave, interleave } from './rtp.js';
@@ -12,8 +13,8 @@ const CAUSE_TO_REASON: Record<number, string> = { 1: 'unallocated', 17: 'busy', 
 
 interface Tap {
   rtp: RtpLeg;
-  emChannel: any; // externalMedia channel
-  snoopChannel?: any; // paired snoop, for per-party taps
+  emChannel: Channel;
+  snoopChannel?: Channel; // paired snoop, for per-party taps
   captureQ?: ByteQueue; // only for stereo capture legs
 }
 
@@ -21,9 +22,9 @@ interface Tap {
 // Every entry point is wrapped so a failure here can never escape to the
 // process (spec §7 process-level isolation) — see guard().
 export class CallSession {
-  private outbound: any;
-  private bridge: any;
-  private snoopBridges: any[] = [];
+  private outbound?: Channel;
+  private bridge?: Bridge;
+  private snoopBridges: Bridge[] = [];
   private taps: { caller?: Tap; callee?: Tap; bridge?: Tap } = {};
   private ws?: WebSocket;
   private wsOpened = false;
@@ -39,10 +40,10 @@ export class CallSession {
   private readonly frameBytes: number; // one 20 ms mono frame in bytes
 
   constructor(
-    private readonly ari: any,
+    private readonly ari: Client,
     private readonly pool: PortPool,
     private readonly entry: TargetEntry,
-    private readonly inbound: any,
+    private readonly inbound: Channel,
     private readonly resolvedTarget: string,
     private readonly fromNumber: string | null,
   ) {
@@ -74,7 +75,7 @@ export class CallSession {
 
     this.outbound = this.ari.Channel();
     this.outbound.once('StasisStart', () => this.guard(() => this.onAnswered()));
-    this.outbound.once('ChannelDestroyed', (event: any) =>
+    this.outbound.once('ChannelDestroyed', (event: ChannelDestroyed) =>
       this.guard(() => {
         if (!this.answered) return this.rejectInbound(event.cause);
         return this.endCall('callee hung up');
@@ -108,7 +109,7 @@ export class CallSession {
     this.answered = true;
     this.log('target answered');
     await this.inbound.answer();
-    await this.bridge.addChannel({ channel: this.outbound.id });
+    await this.bridge!.addChannel({ channel: this.outbound!.id });
     this.openWebSocket();
   }
 
@@ -184,7 +185,7 @@ export class CallSession {
       const bridgeTap = captureMono || (injectMono && monoWhisperTarget === 'both');
 
       if (spy || callerWhisper) this.taps.caller = await this.snoopTap(this.inbound, spy, callerWhisper);
-      if (spy || calleeWhisper) this.taps.callee = await this.snoopTap(this.outbound, spy, calleeWhisper);
+      if (spy || calleeWhisper) this.taps.callee = await this.snoopTap(this.outbound!, spy, calleeWhisper);
       if (bridgeTap) this.taps.bridge = await this.bridgeTap();
 
       if (this.ended) return;
@@ -209,7 +210,7 @@ export class CallSession {
 
   // Waits for a channel we created to actually enter the Stasis app before we
   // bridge it; the POST returns before StasisStart fires.
-  private stasisStarted(channel: any): Promise<void> {
+  private stasisStarted(channel: Channel): Promise<void> {
     return new Promise((resolve, reject) => {
       const t = setTimeout(() => reject(new Error(`channel ${channel.id} never entered Stasis`)), 5000);
       channel.once('StasisStart', () => {
@@ -219,7 +220,7 @@ export class CallSession {
     });
   }
 
-  private async externalMedia(rtp: RtpLeg): Promise<any> {
+  private async externalMedia(rtp: RtpLeg): Promise<Channel> {
     const em = this.ari.Channel();
     const started = this.stasisStarted(em);
     await em.externalMedia({
@@ -238,7 +239,7 @@ export class CallSession {
   // that party's own voice, whisper injects audio only that party hears.
   // ponytail: spy/whisper in-out orientation follows spec §6; the spec itself
   // flags it as needing verification against live Asterisk — flip here if reversed.
-  private async snoopTap(party: any, spy: boolean, whisper: boolean): Promise<Tap> {
+  private async snoopTap(party: Channel, spy: boolean, whisper: boolean): Promise<Tap> {
     const rtp = await this.newLeg();
     try {
       const snoop = this.ari.Channel();
@@ -270,7 +271,7 @@ export class CallSession {
     const rtp = await this.newLeg();
     try {
       const em = await this.externalMedia(rtp);
-      await this.bridge.addChannel({ channel: em.id });
+      await this.bridge!.addChannel({ channel: em.id });
       return { rtp, emChannel: em };
     } catch (err) {
       rtp.close();
