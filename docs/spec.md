@@ -58,13 +58,14 @@ than assuming it is up.
    unallocated-number cause) and the flow ends.
 3. **Resolve target number.** From the matched entry, drop the leading `+`, remove
    the first `stripDigits` digits, and prepend `+` (see §4).
-4. **Dial the target.** Create an outbound leg `PJSIP/<resolvedTarget>@<trunk>`
-   (always `+E.164`; the trunk must accept that format) and a **mixing bridge**; add
-   the incoming (caller) channel to the bridge. The **caller's own caller ID is passed
-   through** as the outbound CLI, so the carrier must permit presenting it. The caller
-   hears normal ringback while the target rings. There is **no separate dial timeout**:
-   the target rings until the caller gives up or the inbound INVITE transaction times
-   out.
+4. **Dial the target.** Create an outbound leg to the trunk (always `+E.164`; the
+   trunk must accept that format) and a **mixing bridge**; add the incoming (caller)
+   channel to the bridge. Trunk hosts are tried **in configured order**: a trunk-level
+   failure (dead host, carrier 5xx) falls through to the next host; callee decisions
+   (busy, rejected) do not. The **caller's own caller ID is passed through** as the
+   outbound CLI, so the carrier must permit presenting it. The caller hears normal
+   ringback while the target rings. There is **no separate dial timeout**: the target
+   rings until the caller gives up or the inbound INVITE transaction times out.
 5. **On answer (200 OK).** When the outbound (callee) leg is answered and joins the
    bridge, the caller↔callee call is live. The sidecar then:
    - opens the target **WebSocket** (URL + optional `headers` from the entry),
@@ -105,7 +106,12 @@ Given incoming `To` number `N` (starts with `+`):
    from `N`, remove the first `entry.stripDigits` digits, and prepend `+`. This is the
    `resolvedTarget`. (`stripDigits` covers both the dial code and the `00` that stands
    in for `+`.)
-4. **Dial** `PJSIP/<resolvedTarget>@<trunk>`.
+4. **Dial** `PJSIP/trunk/sip:<resolvedTarget>@<host>:<port>` for each trunk host in
+   order. The next host is tried only on a trunk-level failure cause (dead host /
+   INVITE timeout, carrier 5xx-class); busy/rejected/no-answer end the attempt. A
+   dead host fails only after the SIP INVITE transaction times out (~32 s), so
+   failover is slow but sure: dialing uses explicit per-host URIs and never
+   consults qualify state (§8).
 
 > Note: matching is a straight string longest-prefix scan over the configured keys.
 > A trie is an optimization, not a requirement, at expected key counts.
@@ -316,12 +322,16 @@ publicIp: 203.0.113.10             # the host's public interface address
 
 # --- SIP trunk (rendered into Asterisk pjsip.conf at startup) ---
 trunk:
-  host: sip.mycarrier.example      # carrier SIP server (host or IP)
+  host: sip.mycarrier.example      # carrier SIP server (host or IP); a list means
+                                   # redundant hosts of the same trunk — inbound is
+                                   # accepted from all, outbound tries them in order
   port: 5060
   username: "12345"
   password: "secret"
   register: true                   # REGISTER to carrier; false = static/IP-based trunk
   transport: udp                   # udp | tcp | tls
+  qualify: true                    # OPTIONS keepalive to the trunk host(s); monitoring
+                                   # only — set false if the carrier ignores OPTIONS
 
 # --- Sidecar RTP listening pool (bound to 127.0.0.1; may overlap Asterisk's range) ---
 rtpPortStart: 20000
@@ -356,27 +366,28 @@ targets:
 
 ### Field reference
 
-| Field                                                | Type   | Default  | Notes                                                                                                                              |
-| ---------------------------------------------------- | ------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `publicIp`                                           | string | —        | Host's public address; Asterisk binds SIP + RTP here. Required.                                                                    |
-| `trunk.host`                                         | string | —        | Carrier SIP server. Required.                                                                                                      |
-| `trunk.port`                                         | int    | `5060`   |                                                                                                                                    |
-| `trunk.username`                                     | string | —        | Trunk auth user.                                                                                                                   |
-| `trunk.password`                                     | string | —        | Trunk auth secret.                                                                                                                 |
-| `trunk.register`                                     | bool   | `true`   | REGISTER vs. static IP trunk.                                                                                                      |
-| `trunk.transport`                                    | enum   | `udp`    | `udp` \| `tcp` \| `tls`.                                                                                                           |
-| `rtpPortStart`                                       | int    | —        | First UDP port of the sidecar's externalMedia pool (bound on `127.0.0.1`).                                                         |
-| `rtpPortEnd`                                         | int    | —        | Last UDP port (inclusive). Pool size bounds concurrency.                                                                           |
-| `targets`                                            | map    | —        | Prefix key (E.164 with `+`) → target config.                                                                                       |
-| `targets.<k>.stripDigits`                            | int    | —        | Digits dropped after the To number's leading `+` (dial code + the `00` standing in for `+`); the result is then prefixed with `+`. |
-| `targets.<k>.url`                                    | string | —        | Target WebSocket URL (`ws://` or `wss://`).                                                                                        |
-| `targets.<k>.captureMono`                            | bool   | `true`   | Mono mix vs. stereo capture (WS receives).                                                                                         |
-| `targets.<k>.injectMono`                             | bool   | `true`   | Mono vs. stereo inject (WS sends).                                                                                                 |
-| `targets.<k>.monoWhisperTarget`                      | enum   | `callee` | `caller` \| `callee` \| `both`; used only if `injectMono`.                                                                         |
-| `targets.<k>.wideBandAudio`                          | bool   | `false`  | 16 kHz vs. 8 kHz PCM.                                                                                                              |
-| `targets.<k>.endCallOnWsClose`                       | enum   | `clean`  | `never` \| `always` \| `clean`; end call on WebSocket close (§7).                                                                  |
-| `targets.<k>.dangerouslyIgnoreTlsVerificationErrors` | bool   | `false`  | Skip `wss://` TLS certificate verification (insecure; testing only).                                                               |
-| `targets.<k>.headers`                                | map    | `{}`     | Extra WebSocket handshake headers.                                                                                                 |
+| Field                                                | Type           | Default  | Notes                                                                                                                                           |
+| ---------------------------------------------------- | -------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `publicIp`                                           | string         | —        | Host's public address; Asterisk binds SIP + RTP here. Required.                                                                                 |
+| `trunk.host`                                         | string \| list | —        | Carrier SIP server(s). Required. A list means redundant hosts of the one trunk: inbound accepted from all, outbound tried in order (§4).        |
+| `trunk.port`                                         | int            | `5060`   |                                                                                                                                                 |
+| `trunk.username`                                     | string         | —        | Trunk auth user.                                                                                                                                |
+| `trunk.password`                                     | string         | —        | Trunk auth secret.                                                                                                                              |
+| `trunk.register`                                     | bool           | `true`   | REGISTER vs. static IP trunk.                                                                                                                   |
+| `trunk.transport`                                    | enum           | `udp`    | `udp` \| `tcp` \| `tls`.                                                                                                                        |
+| `trunk.qualify`                                      | bool           | `true`   | OPTIONS keepalive to every trunk host. Monitoring only — outbound dialing never depends on it (§4); set `false` if the carrier ignores OPTIONS. |
+| `rtpPortStart`                                       | int            | —        | First UDP port of the sidecar's externalMedia pool (bound on `127.0.0.1`).                                                                      |
+| `rtpPortEnd`                                         | int            | —        | Last UDP port (inclusive). Pool size bounds concurrency.                                                                                        |
+| `targets`                                            | map            | —        | Prefix key (E.164 with `+`) → target config.                                                                                                    |
+| `targets.<k>.stripDigits`                            | int            | —        | Digits dropped after the To number's leading `+` (dial code + the `00` standing in for `+`); the result is then prefixed with `+`.              |
+| `targets.<k>.url`                                    | string         | —        | Target WebSocket URL (`ws://` or `wss://`).                                                                                                     |
+| `targets.<k>.captureMono`                            | bool           | `true`   | Mono mix vs. stereo capture (WS receives).                                                                                                      |
+| `targets.<k>.injectMono`                             | bool           | `true`   | Mono vs. stereo inject (WS sends).                                                                                                              |
+| `targets.<k>.monoWhisperTarget`                      | enum           | `callee` | `caller` \| `callee` \| `both`; used only if `injectMono`.                                                                                      |
+| `targets.<k>.wideBandAudio`                          | bool           | `false`  | 16 kHz vs. 8 kHz PCM.                                                                                                                           |
+| `targets.<k>.endCallOnWsClose`                       | enum           | `clean`  | `never` \| `always` \| `clean`; end call on WebSocket close (§7).                                                                               |
+| `targets.<k>.dangerouslyIgnoreTlsVerificationErrors` | bool           | `false`  | Skip `wss://` TLS certificate verification (insecure; testing only).                                                                            |
+| `targets.<k>.headers`                                | map            | `{}`     | Extra WebSocket handshake headers.                                                                                                              |
 
 Internal, non-configurable settings baked into the images: ARI HTTP bind
 (`127.0.0.1`) and credentials (localhost-only), Asterisk's own `rtp.conf` range, the
@@ -434,7 +445,8 @@ release tarball — is described in [debian-install.md](debian-install.md).
 ## 10. Out of scope / deferred
 
 - WebSocket reconnect / call-audio resumption after an unexpected drop.
-- Multiple trunks or per-target trunks (single fixed trunk only).
+- Multiple trunks or per-target trunks (single fixed trunk only; redundant *hosts*
+  of that one trunk are supported, see §8).
 - Number rewriting beyond a fixed `stripDigits` digit count (no regex/pattern
   transforms); outbound is always dialed as `+E.164`.
 - Configurable dial/answer timeout or maximum call duration (dialing is bounded only

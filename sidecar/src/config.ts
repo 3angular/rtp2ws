@@ -24,9 +24,15 @@ export interface TargetEntry {
   headers: Record<string, string>;
 }
 
+export interface Trunk {
+  hosts: string[]; // redundant hosts of the one trunk, dialed in order (spec §4)
+  port: number;
+}
+
 export interface Config {
   rtpPortStart: number;
   rtpPortEnd: number;
+  trunk: Trunk;
   targets: TargetEntry[];
 }
 
@@ -59,6 +65,17 @@ export function parseConfig(text: string): Config {
   const rtpPortEnd = int(raw.rtpPortEnd, 'rtpPortEnd');
   if (rtpPortEnd < rtpPortStart) fail('rtpPortEnd must be >= rtpPortStart');
 
+  if (!raw.trunk || typeof raw.trunk !== 'object') fail('trunk must be a map');
+  const rawHost = raw.trunk.host;
+  const hosts: string[] = Array.isArray(rawHost) ? rawHost : [rawHost];
+  if (hosts.length === 0 || hosts.some((h) => typeof h !== 'string' || !h)) {
+    fail('trunk.host must be a host or a non-empty list of hosts');
+  }
+  const trunk: Trunk = {
+    hosts,
+    port: raw.trunk.port === undefined ? 5060 : int(raw.trunk.port, 'trunk.port'),
+  };
+
   if (!raw.targets || typeof raw.targets !== 'object' || Object.keys(raw.targets).length === 0) {
     fail('targets must be a non-empty map');
   }
@@ -90,7 +107,7 @@ export function parseConfig(text: string): Config {
     };
   });
 
-  return { rtpPortStart, rtpPortEnd, targets };
+  return { rtpPortStart, rtpPortEnd, trunk, targets };
 }
 
 export function loadConfig(path: string): Config {

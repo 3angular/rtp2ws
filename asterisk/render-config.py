@@ -25,6 +25,11 @@ def main(path):
     public_ip = cfg.get("publicIp") or die("publicIp is required")
     trunk = cfg.get("trunk") or die("trunk is required")
     host = trunk.get("host") or die("trunk.host is required")
+    # A list means redundant hosts of the same trunk (spec §8): inbound is
+    # accepted from all of them, outbound tries them in order (sidecar).
+    hosts = host if isinstance(host, list) else [host]
+    if not all(isinstance(h, str) and h for h in hosts):
+        die("trunk.host must be a host or a list of hosts")
     port = trunk.get("port", 5060)
     username = trunk.get("username")
     password = trunk.get("password")
@@ -71,26 +76,27 @@ auth_type=userpass
 username={username}
 password={password or ""}
 """
+    # qualify (OPTIONS keepalive) is monitoring only: outbound dials use explicit
+    # per-host URIs, so an unavailable contact never blocks calls. Some carriers
+    # ignore OPTIONS — trunk.qualify: false silences the resulting flapping.
+    contacts = "".join(f"contact=sip:{h}:{port}\n" for h in hosts)
+    qualify = "qualify_frequency=60\n" if trunk.get("qualify", True) else ""
     pjsip += f"""
-; no qualify: carriers often ignore OPTIONS, and a failed qualify would mark
-; the contact unavailable and block outbound dials
 [trunk]
 type=aor
-contact=sip:{host}:{port}
-
+{contacts}{qualify}
 [trunk-identify]
 type=identify
 endpoint=trunk
-match={host}
-"""
+""" + "".join(f"match={h}\n" for h in hosts)
     if register:
         pjsip += f"""
 [trunk-reg]
 type=registration
 transport=transport-{transport}
 outbound_auth=trunk-auth
-server_uri=sip:{host}:{port}
-client_uri=sip:{username}@{host}:{port}
+server_uri=sip:{hosts[0]}:{port}
+client_uri=sip:{username}@{hosts[0]}:{port}
 retry_interval=30
 line=yes
 endpoint=trunk

@@ -58,7 +58,7 @@ async function main(): Promise<void> {
         return;
       }
 
-      new CallSession(ari, pool, entry, channel, target, fromNumber).start().catch((err: any) => {
+      new CallSession(ari, pool, entry, channel, target, fromNumber, cfg.trunk).start().catch((err: any) => {
         console.error(`[call ${channel.id}] failed to start:`, err?.message ?? err);
         channel.hangup().catch(() => {});
       });

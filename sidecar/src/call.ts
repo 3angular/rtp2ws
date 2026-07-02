@@ -1,6 +1,6 @@
 import type { Bridge, Channel, ChannelDestroyed, Client } from 'ari-client';
 import WebSocket from 'ws';
-import { STASIS_APP, TargetEntry } from './config.js';
+import { STASIS_APP, TargetEntry, Trunk } from './config.js';
 import { ByteQueue, PortPool, RtpLeg, deinterleave, interleave } from './rtp.js';
 
 const TICK_MS = 20;
@@ -10,6 +10,11 @@ const WS_BACKPRESSURE_BYTES = 1 << 20; // stop sending capture frames beyond thi
 
 // ARI hangup cause (ChannelDestroyed) → ARI hangup reason for the other leg.
 const CAUSE_TO_REASON: Record<number, string> = { 1: 'unallocated', 17: 'busy', 19: 'no_answer', 21: 'rejected' };
+
+// Trunk-level failures worth retrying on the next redundant host (spec §4):
+// 18/102 dead host (INVITE timeout / 408), 27 destination out of order,
+// 34/38/41/42 carrier 5xx-class. Callee decisions (busy, rejected, …) never retry.
+const TRUNK_RETRY_CAUSES = new Set([18, 27, 34, 38, 41, 42, 102]);
 
 interface Tap {
   rtp: RtpLeg;
@@ -46,6 +51,7 @@ export class CallSession {
     private readonly inbound: Channel,
     private readonly resolvedTarget: string,
     private readonly fromNumber: string | null,
+    private readonly trunk: Trunk,
   ) {
     this.sampleRate = entry.wideBandAudio ? 16000 : 8000;
     this.frameBytes = (this.sampleRate / 50) * 2;
@@ -73,19 +79,31 @@ export class CallSession {
     await this.bridge.create({ type: 'mixing' });
     await this.bridge.addChannel({ channel: this.inbound.id });
 
+    await this.dial(0);
+  }
+
+  // Dial the target via trunk host [i]; a trunk-level failure falls through to
+  // the next redundant host (spec §4). A dead host only fails once the INVITE
+  // transaction times out (~32 s), so failover is slow but sure (no qualify).
+  private async dial(i: number): Promise<void> {
+    const host = this.trunk.hosts[i];
     this.outbound = this.ari.Channel();
     this.outbound.once('StasisStart', () => this.guard(() => this.onAnswered()));
     this.outbound.once('ChannelDestroyed', (event: ChannelDestroyed) =>
       this.guard(() => {
-        if (!this.answered) return this.rejectInbound(event.cause);
-        return this.endCall('callee hung up');
+        if (this.answered) return this.endCall('callee hung up');
+        if (!this.ended && TRUNK_RETRY_CAUSES.has(event.cause) && i + 1 < this.trunk.hosts.length) {
+          this.log(`trunk host ${host} failed (cause ${event.cause}), trying next host`);
+          return this.dial(i + 1).catch(() => this.rejectInbound(event.cause));
+        }
+        return this.rejectInbound(event.cause);
       }),
     );
     this.outbound.once('StasisEnd', () => this.guard(() => this.endCall('callee left')));
 
     // No dial timeout (spec §3): the target rings until the caller gives up.
     await this.outbound.originate({
-      endpoint: `PJSIP/${this.resolvedTarget}@trunk`,
+      endpoint: `PJSIP/trunk/sip:${this.resolvedTarget}@${host}:${this.trunk.port}`,
       app: STASIS_APP,
       appArgs: 'dialed',
       callerId: this.fromNumber ?? undefined,

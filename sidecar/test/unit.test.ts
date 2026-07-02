@@ -31,6 +31,10 @@ test('config parsing and defaults', () => {
   assert.equal(a.wideBandAudio, false); // default
   assert.equal(a.endCallOnWsClose, 'always'); // explicit
   assert.equal(b.endCallOnWsClose, 'clean'); // default
+  assert.deepEqual(cfg.trunk, { hosts: ['sip.example.com'], port: 5060 }); // string host, default port
+  const two = parseConfig(YAML.replace('{ host: sip.example.com }', '{ host: [sbc1.example.com, sbc2.example.com], port: 5070 }'));
+  assert.deepEqual(two.trunk, { hosts: ['sbc1.example.com', 'sbc2.example.com'], port: 5070 }); // redundant hosts
+  assert.throws(() => parseConfig(YAML.replace('{ host: sip.example.com }', '{ host: [] }'))); // empty host list
   assert.throws(() => parseConfig('rtpPortStart: 1\nrtpPortEnd: 2\ntargets: {}'));
   assert.throws(() => parseConfig(YAML.replace('wss://example.com/audio', 'http://nope')));
 });

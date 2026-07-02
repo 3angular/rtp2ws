@@ -5,12 +5,16 @@ publicIp: 203.0.113.10             # the host's public interface address
 
 # --- SIP trunk (rendered into Asterisk pjsip.conf at startup) ---
 trunk:
-  host: sip.mycarrier.example      # carrier SIP server (host or IP)
+  host: sip.mycarrier.example      # carrier SIP server (host or IP); a list means
+                                   # redundant hosts of the same trunk — inbound is
+                                   # accepted from all, outbound tries them in order
   port: 5060
   username: "12345"
   password: "secret"
   register: true                   # REGISTER to carrier; false = static/IP-based trunk
   transport: udp                   # udp | tcp | tls
+  qualify: true                    # OPTIONS keepalive to the trunk host(s); monitoring
+                                   # only — set false if the carrier ignores OPTIONS
 
 # --- Sidecar RTP listening pool (bound to 127.0.0.1; may overlap Asterisk's range) ---
 rtpPortStart: 20000
