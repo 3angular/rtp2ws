@@ -2,8 +2,7 @@
 
 Dieses Dokument beschreibt das WebSocket-Protokoll, mit dem RTP2WS Live-Audio eines
 Anrufs an das Zielsystem streamt und Audio vom Zielsystem entgegennimmt. Es enthält
-alles, was das Zielsystem zur Umsetzung der empfangenden Seite benötigt, und keine
-Details zu den internen Abläufen von RTP2WS.
+alles, was das Zielsystem zur Umsetzung der empfangenden Seite benötigt.
 
 ## 1. Rollen und Verbindung
 

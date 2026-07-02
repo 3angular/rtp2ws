@@ -2,8 +2,7 @@
 
 This document describes the WebSocket protocol RTP2WS uses to stream live call audio
 to the target system and to accept audio back from it. It is everything the target
-system needs to implement the receiving side; it contains no details about RTP2WS's
-internals.
+system needs to implement the receiving side.
 
 ## 1. Roles and connection
 
