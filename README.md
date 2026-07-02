@@ -30,3 +30,12 @@ on host networking).
 - [WebSocket Integration Guide](docs/websocket-integration.md)
   ([Deutsch](docs/websocket-integration.de.md)) — the protocol for the WebSocket
   recipient: metadata, PCM audio format, and lifecycle.
+
+## License
+
+This repository's original source code, configuration templates, scripts, and
+documentation are licensed under the [Apache License 2.0](LICENSE).
+
+Release artifacts and container images may include third-party components under
+their own licenses, including Asterisk under GPLv2. See
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for distribution notes.
