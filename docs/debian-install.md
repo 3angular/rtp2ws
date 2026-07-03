@@ -79,8 +79,9 @@ On a clean Debian 13 host, as root:
 
 ```sh
 curl -LO https://github.com/3angular/rtp2ws/releases/latest/download/rtp2ws.tar.gz
+release_dir=$(tar tzf rtp2ws.tar.gz | sed -n '1s#/.*##p')
 tar xzf rtp2ws.tar.gz
-cd rtp2ws-vX.Y.Z
+cd "$release_dir"
 ./install.sh
 ```
 
