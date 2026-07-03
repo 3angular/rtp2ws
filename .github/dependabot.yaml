@@ -1,0 +1,45 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/sidecar"
+    schedule:
+      interval: "daily"
+    groups:
+      dev-major:
+        dependency-type: development
+        update-types:
+          - major
+      dev-safe:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+      prod-major:
+        dependency-type: production
+        update-types:
+          - major
+      prod-safe:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: "docker"
+    directories:
+      - "/asterisk"
+      - "/sidecar"
+    schedule:
+      interval: "daily"
+    groups:
+      docker:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    groups:
+      github-actions:
+        patterns:
+          - "*"

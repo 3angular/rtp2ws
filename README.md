@@ -14,9 +14,11 @@ docker compose up --build -d
 ```
 
 Alternatively, deploy natively on a clean Debian 13 host from a GitHub release
-(pushed semver tags build one automatically): extract the release tarball and
-run `install.sh` — Asterisk from Debian packages plus the sidecar, both as
-systemd services. See [docs/debian-install.md](docs/debian-install.md).
+(pushed semver tags build one automatically): download
+[`rtp2ws.tar.gz`](https://github.com/3angular/rtp2ws/releases/latest/download/rtp2ws.tar.gz),
+extract it, and run `install.sh` — Asterisk from Debian packages plus the
+sidecar, both as systemd services. See
+[docs/debian-install.md](docs/debian-install.md).
 
 Layout: `asterisk/` (Asterisk 22 image; renders its config from the mounted
 YAML at startup), `sidecar/` (TypeScript ARI app + RTP↔WebSocket

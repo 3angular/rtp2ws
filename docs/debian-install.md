@@ -52,7 +52,7 @@ Pushing a semver tag (`vX.Y.Z`) triggers the
 the sidecar and attaches one artifact to a GitHub release:
 
 ```
-rtp2ws-vX.Y.Z.tar.gz
+rtp2ws.tar.gz
 └── rtp2ws-vX.Y.Z/
     ├── install.sh                     # the installer
     ├── rtp2ws.example.yaml            # config template
@@ -78,7 +78,8 @@ git push origin v1.2.3
 On a clean Debian 13 host, as root:
 
 ```sh
-tar xzf rtp2ws-vX.Y.Z.tar.gz
+curl -LO https://github.com/3angular/rtp2ws/releases/latest/download/rtp2ws.tar.gz
+tar xzf rtp2ws.tar.gz
 cd rtp2ws-vX.Y.Z
 ./install.sh
 ```
