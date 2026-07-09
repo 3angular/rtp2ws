@@ -22,8 +22,8 @@
   },
   "devDependencies": {
     "@types/ari-client": "^2.2.14",
-    "@types/node": "^24.13.2",
+    "@types/node": "^26.1.1",
     "@types/ws": "^8.5.0",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   }
 }
