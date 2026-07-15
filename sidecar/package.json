@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "ari-client": "^2.2.0",
-    "ws": "^8.18.0",
+    "ws": "^8.21.1",
     "yaml": "^2.6.0"
   },
   "overrides": {
